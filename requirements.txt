@@ -1,0 +1,9 @@
+requests
+beautifulsoup4
+lxml
+tqdm
+python-dotenv
+arabic-reshaper
+python-bidi
+rich
+questionary
