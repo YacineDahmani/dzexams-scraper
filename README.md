@@ -15,6 +15,7 @@ Ce projet propose une interface CLI en francais.
 - Python 3.10 or newer.
 - A terminal with UTF-8 support.
 - On Windows, use Windows Terminal or PowerShell for the best display.
+- Arabic shaping is enabled through `arabic-reshaper` and `python-bidi`; if those are missing, Arabic text may still print but will look less correct.
 
 ## Setup
 
@@ -39,6 +40,7 @@ Ce projet propose une interface CLI en francais.
 
 Au demarrage, l'application affiche les menus en francais. Pour un rendu correct sous Windows:
 - Utilisez un terminal compatible UTF-8.
+- Prefer Windows Terminal with an Arabic-capable font such as `Segoe UI` or `Noto Sans Arabic`.
 
 ## Usage
 

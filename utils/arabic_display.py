@@ -4,7 +4,7 @@ import sys
 try:
     import arabic_reshaper
     from bidi.algorithm import get_display
-except Exception:  # optional dependency fallback
+except Exception:
     arabic_reshaper = None
     get_display = None
 

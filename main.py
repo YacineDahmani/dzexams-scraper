@@ -4,6 +4,7 @@ import questionary
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from engine.parser import (
     get_session,
@@ -38,15 +39,62 @@ def _show_header():
 
 
 def _show_error(message):
-    console.print(f"[bold red]{display_text('Erreur / خطأ:')}[/bold red] [red]{display_text(message)}[/red]")
+    console.print(f"[bold red]{display_text(message)}[/bold red]")
 
 
 def _show_warning(message):
-    console.print(f"[bold yellow]{display_text('Avertissement / تنبيه:')}[/bold yellow] [yellow]{display_text(message)}[/yellow]")
+    console.print(f"[bold yellow]{display_text(message)}[/bold yellow]")
 
 
-def _show_info(message):
-    console.print(f"[bold blue]{display_text('Info / معلومات:')}[/bold blue] [white]{display_text(message)}[/white]")
+def _show_success(message):
+    console.print(f"[bold green]{display_text(message)}[/bold green]")
+
+
+def _run_step(label, action, *args, **kwargs):
+    with console.status(f"[cyan]{display_text(label)}[/cyan]", spinner="dots"):
+        return action(*args, **kwargs)
+
+
+def _show_download_plan(level_code, subject_name, category_name, year_filter, limit, dest):
+    table = Table(box=box.SIMPLE, show_header=False, pad_edge=False)
+    table.add_column(style="bold cyan")
+    table.add_column(style="white")
+    table.add_row(display_text("Niveau / المرحلة"), display_text(level_code))
+    table.add_row(display_text("Matiere / المادة"), display_text(subject_name))
+    table.add_row(display_text("Categorie / القسم"), display_text(category_name))
+    table.add_row(display_text("Filtre annee / فلترة السنة"), display_text(year_filter or "Aucun / بدون"))
+    table.add_row(display_text("Limite / العدد"), display_text("Tous / الكل" if limit is None else str(limit)))
+    table.add_row(display_text("Dossier / المجلد"), display_text(str(dest)))
+
+    console.print(
+        Panel(
+            table,
+            title=display_text("Resume / الملخص"),
+            border_style="cyan",
+            box=box.ROUNDED,
+            padding=(0, 1),
+        )
+    )
+
+
+def _show_download_summary(total, completed, failed, dest):
+    table = Table(box=box.SIMPLE, show_header=False, pad_edge=False)
+    table.add_column(style="bold cyan")
+    table.add_column(style="white")
+    table.add_row(display_text("Total"), str(total))
+    table.add_row(display_text("Reussis / نجح"), str(completed))
+    table.add_row(display_text("Echoues / فشل"), str(failed))
+    table.add_row(display_text("Dossier / المجلد"), display_text(str(dest)))
+
+    console.print(
+        Panel(
+            table,
+            title=display_text("Telechargement termine / انتهى التحميل"),
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(0, 1),
+        )
+    )
 
 
 def _select(options, label):
@@ -180,8 +228,12 @@ def main():
         year_idx = _select(year_names, "Choisissez l'annee scolaire / اختر السنة")
         level_code = LEVELS[stage][year_names[year_idx]]
 
-        _show_info(f"Chargement des matieres pour {level_code}... / تحميل المواد")
-        subjects = get_subjects(session, level_code)
+        subjects = _run_step(
+            f"Chargement des matieres pour {level_code}... / تحميل المواد",
+            get_subjects,
+            session,
+            level_code,
+        )
 
         if not subjects:
             _show_error("Aucune matiere trouvee / لم يتم العثور على مواد")
@@ -193,8 +245,13 @@ def main():
         subj_idx = _select(subject_names, "Choisissez la matiere / اختر المادة")
         subject_slug = subjects[subj_idx]["slug"]
 
-        _show_info("Chargement des categories... / تحميل الاقسام")
-        categories = get_categories(session, level_code, subject_slug)
+        categories = _run_step(
+            "Chargement des categories... / تحميل الاقسام",
+            get_categories,
+            session,
+            level_code,
+            subject_slug,
+        )
 
         if not categories:
             _show_error("Aucune categorie trouvee / لم يتم العثور على أقسام")
@@ -205,10 +262,12 @@ def main():
         cat_names = [c["name"] for c in categories]
         cat_idx = _select(cat_names, "Choisissez la categorie / اختر القسم")
         category_code = categories[cat_idx]["code"]
+        category_name = categories[cat_idx]["name"]
 
         year_filter = _ask_year_filter("Entrez un filtre d'annees (exemple 2024 ou 2022-2024), ou laissez vide / ادخل السنة للفلترة او اتركها فارغة")
         limit = _ask_download_limit("Combien de fichiers telecharger ? (defaut: 1, ecrire 'tous' pour tout) / عدد الملفات المراد تحميلها (الافتراضي 1، اكتب tous للكل)")
         dest = build_dest_folder(level_code, subject_slug, category_code)
+        _show_download_plan(level_code, subject_names[subj_idx], category_name, year_filter, limit, dest)
 
         if not _ask_confirm("Demarrer le telechargement maintenant ? / هل تريد بدء التحميل الان؟", default=True):
             _show_warning("Operation annulee par l'utilisateur / تم إلغاء العملية من طرف المستخدم")
@@ -216,8 +275,17 @@ def main():
                 continue
             return
 
-        _show_info("Recherche des sujets... / البحث عن المواضيع")
-        exams = _get_exam_links_with_retries(session, level_code, subject_slug, category_code, year_filter, limit, max_attempts=3)
+        exams = _run_step(
+            "Recherche des sujets... / البحث عن المواضيع",
+            _get_exam_links_with_retries,
+            session,
+            level_code,
+            subject_slug,
+            category_code,
+            year_filter,
+            limit,
+            3,
+        )
 
         if not exams:
             _show_error("Aucun sujet trouve / لم يتم العثور على مواضيع")
@@ -225,31 +293,32 @@ def main():
                 continue
             return
 
-        _show_info(f"{len(exams)} sujet(s) trouve(s) / تم العثور على مواضيع")
+        _show_success(f"{len(exams)} sujet(s) trouve(s) / تم العثور على مواضيع")
+
+        completed = 0
+        failed = 0
 
         for i, exam in enumerate(exams, 1):
             sol = display_text("avec correction / مع الحل") if exam["has_solution"] else display_text("sans correction / بدون حل")
             console.print(
-                display_text(f"\n[{i}/{len(exams)}] {exam['title']} ({exam['year'] or '?'}) - {sol}"),
-                style="bold white",
+                display_text(f"[{i}/{len(exams)}] {exam['title']} ({exam['year'] or '?'}) - {sol}"),
+                style="white",
             )
 
-            downloaded = None
-            for attempt in range(1, 4):
-                pdf_url = _get_pdf_url_with_retries(session, exam["url"], max_attempts=2)
-                if not pdf_url:
-                    if attempt < 3:
-                        _show_warning(f"Nouvelle tentative ({attempt}/3) : {exam['title']} / إعادة المحاولة")
-                    continue
+            pdf_url = _get_pdf_url_with_retries(session, exam["url"], max_attempts=3)
+            if not pdf_url:
+                failed += 1
+                _show_warning(f"Lien PDF introuvable: {exam['title']} / رابط PDF غير موجود")
+                continue
 
-                downloaded = download_pdf(session, pdf_url, dest)
-                if downloaded:
-                    break
+            downloaded = download_pdf(session, pdf_url, dest, max_retries=3)
+            if downloaded:
+                completed += 1
+            else:
+                failed += 1
+                _show_warning(f"Echec du telechargement: {exam['title']} / فشل التحميل")
 
-                if attempt < 3:
-                    _show_warning(f"Echec du telechargement, nouvelle tentative ({attempt}/3) : {exam['title']} / فشل التحميل، إعادة المحاولة")
-
-        _show_info(f"Telechargement termine. Dossier: {dest} / انتهى التحميل. المسار")
+        _show_download_summary(len(exams), completed, failed, dest)
 
         if not _ask_confirm("Lancer un autre telechargement ? / هل تريد تنزيلات اخرى؟", default=False):
             return
