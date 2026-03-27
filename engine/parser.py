@@ -4,7 +4,7 @@ import re
 import base64
 import requests
 from bs4 import BeautifulSoup
-from utils.translator import BASE_URL
+from utils.translator import BASE_URL, translate_category_name, translate_subject_name
 from utils.logger import log
 
 USER_AGENTS = [
@@ -105,7 +105,7 @@ def get_subjects(session, level_code):
             slug = href.split("/")[-1]
             name = link.get_text(strip=True).split("عدد")[0].strip()
             if name and slug and slug not in ("moyenne", "youtube"):
-                subjects.append({"name": name, "slug": slug})
+                subjects.append({"name": translate_subject_name(name), "slug": slug})
     seen = set()
     unique = []
     for s in subjects:
@@ -135,7 +135,7 @@ def get_categories(session, level_code, subject_slug):
                     display_name = part
                     break
             if code and code not in ("moyenne", "youtube"):
-                categories.append({"name": display_name, "code": code})
+                categories.append({"name": translate_category_name(display_name), "code": code})
     seen = set()
     unique = []
     for c in categories:
@@ -150,7 +150,7 @@ def get_categories(session, level_code, subject_slug):
             soup.select("a.btn-item-sujet, a.btn-item, a[class*='btn-item'][data-id]")
         )
         if has_direct_cards:
-            unique.append({"name": "All exams", "code": "direct"})
+            unique.append({"name": translate_category_name("All exams"), "code": "direct"})
 
     return unique
 
