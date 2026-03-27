@@ -28,6 +28,10 @@ def display_prompt(text):
 def configure_console_encoding():
     try:
         os.environ.setdefault("PYTHONUTF8", "1")
+        os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+        if os.name == "nt":
+            # Best effort: switch active code page to UTF-8 for Windows terminals.
+            os.system("chcp 65001 >NUL")
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
     except Exception:

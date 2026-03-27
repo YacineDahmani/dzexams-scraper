@@ -40,7 +40,7 @@ def download_pdf(session, url, dest_folder, filename=None, max_retries=3):
     temp_filepath = filepath.with_suffix(filepath.suffix + ".part")
 
     if filepath.exists():
-        log.info(f"الملف موجود مسبقا: {filename}")
+        log.info(f"File already exists: {filename}")
         return str(filepath)
 
     for attempt in range(1, max_retries + 1):
@@ -59,40 +59,40 @@ def download_pdf(session, url, dest_folder, filename=None, max_retries=3):
 
             os.replace(temp_filepath, filepath)
 
-            log.info(f"تم التحميل: {filename}")
+            log.info(f"Downloaded: {filename}")
             return str(filepath)
 
         except requests.Timeout:
             if temp_filepath.exists():
                 os.remove(temp_filepath)
             if attempt == max_retries:
-                log.error(f"انتهت مهلة الاتصال اثناء تحميل {filename}")
+                log.error(f"Connection timed out while downloading {filename}")
                 return None
-            log.warning(f"مهلة اتصال. اعادة المحاولة ({attempt}/{max_retries}) لتحميل: {filename}")
+            log.warning(f"Connection timeout. Retrying ({attempt}/{max_retries}) for: {filename}")
             time.sleep(random.uniform(1, 2))
 
         except requests.RequestException as e:
             if temp_filepath.exists():
                 os.remove(temp_filepath)
             if attempt == max_retries:
-                log.error(f"فشل تحميل {filename} بسبب مشكلة شبكة: {e}")
+                log.error(f"Failed to download {filename} due to network issue: {e}")
                 return None
-            log.warning(f"مشكلة شبكة. اعادة المحاولة ({attempt}/{max_retries}) لتحميل: {filename}")
+            log.warning(f"Network issue. Retrying ({attempt}/{max_retries}) for: {filename}")
             time.sleep(random.uniform(1, 2))
 
         except OSError as e:
             if temp_filepath.exists():
                 os.remove(temp_filepath)
-            log.error(f"فشل حفظ الملف {filename}: {e}")
+            log.error(f"Failed to save file {filename}: {e}")
             return None
 
         except Exception as e:
             if temp_filepath.exists():
                 os.remove(temp_filepath)
             if attempt == max_retries:
-                log.error(f"فشل تحميل {filename}: {e}")
+                log.error(f"Failed to download {filename}: {e}")
                 return None
-            log.warning(f"اعادة المحاولة ({attempt}/{max_retries}) لتحميل: {filename}")
+            log.warning(f"Retrying ({attempt}/{max_retries}) for: {filename}")
             time.sleep(random.uniform(1, 2))
 
 

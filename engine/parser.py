@@ -142,11 +142,24 @@ def get_categories(session, level_code, subject_slug):
         if c["code"] not in seen:
             seen.add(c["code"])
             unique.append(c)
+
+    # Some subjects (for example BEM/BAC variants) expose exams directly on the
+    # subject page without an intermediate category URL.
+    if not unique:
+        has_direct_cards = bool(
+            soup.select("a.btn-item-sujet, a.btn-item, a[class*='btn-item'][data-id]")
+        )
+        if has_direct_cards:
+            unique.append({"name": "All exams", "code": "direct"})
+
     return unique
 
 
 def get_exam_links(session, level_code, subject_slug, category_code, year_filter=None, limit=None):
-    url = f"{BASE_URL}/ar/{level_code}/{subject_slug}/{category_code}"
+    if category_code in (None, "", "direct"):
+        url = f"{BASE_URL}/ar/{level_code}/{subject_slug}"
+    else:
+        url = f"{BASE_URL}/ar/{level_code}/{subject_slug}/{category_code}"
     soup = fetch_page(session, url)
     if not soup:
         return []
@@ -158,7 +171,9 @@ def get_exam_links(session, level_code, subject_slug, category_code, year_filter
         return []
 
     exams = []
-    for card in soup.select("a.btn-item-sujet"):
+    seen_urls = set()
+    cards = soup.select("a.btn-item-sujet, a.btn-item, a[class*='btn-item'][data-id]")
+    for card in cards:
         href = card.get("href", "")
         data_id = card.get("data-id", "")
 
@@ -173,6 +188,10 @@ def get_exam_links(session, level_code, subject_slug, category_code, year_filter
         if not full_url:
             continue
 
+        if full_url in seen_urls:
+            continue
+        seen_urls.add(full_url)
+
         text = card.get_text(" ", strip=True)
         title_attr = card.get("title", "")
         combined_text = f"{title_attr} {text}".strip()
@@ -182,7 +201,7 @@ def get_exam_links(session, level_code, subject_slug, category_code, year_filter
         if allowed_years and not set(years).intersection(allowed_years):
             continue
 
-        has_solution = any(keyword in combined_text for keyword in ("✅", "تصحيح", "الحل", "solution"))
+        has_solution = any(keyword in combined_text.lower() for keyword in ("✅", "تصحيح", "الحل", "solution"))
 
         title = title_attr.strip() or text
         title = re.sub(r"\s+", " ", title)
