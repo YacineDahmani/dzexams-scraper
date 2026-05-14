@@ -53,11 +53,6 @@ You will be asked to choose:
 - and an optional download limit.
 
 
-At startup, the app shows Arabic and French menus. For the best display on Windows:
-- Use a UTF-8 capable terminal.
-- Prefer Windows Terminal with an Arabic-capable font such as `Segoe UI` or `Noto Sans Arabic`.
-- Make sure `arabic-reshaper` and `python-bidi` are installed for better Arabic rendering.
-
 ## الاستخدام
 
 شغّل أداة التنزيل:
